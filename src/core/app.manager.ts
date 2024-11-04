@@ -1,6 +1,5 @@
 import express, { Application } from "express";
 import { Constructor, Container } from "./di/container.di";
-
 import { ExecuteHandlerMiddleware } from "./middlewares/execute-handler.middleware";
 import { ErrorHandlerMiddleware } from "./middlewares/error.middleware";
 import { BaseResponseFormatter } from "./middlewares/response-formatter.middleware";
@@ -31,6 +30,10 @@ export class AppManager {
 
   init() {
     this.diRegister();
+    this.applyMiddlewares(
+      express.json(),
+      express.urlencoded({ extended: true })
+    );
     this.applyMiddlewares(...this.middlewares);
     this.routeRegister();
     this.applyMiddlewares(ExecuteHandlerMiddleware);

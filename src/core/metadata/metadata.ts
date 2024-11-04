@@ -42,10 +42,22 @@ export const setMetadata = (
   };
 };
 
-export const getMetadata = (key: string | symbol, target: any) => {
-  return target.metadata[key];
+export const getMetadata = (
+  key: string | symbol,
+  target: any,
+  paramIndex?: number
+) => {
+  if (paramIndex !== undefined && target.paramMetadata) {
+    return target.paramMetadata[paramIndex];
+  } else if (target.metadata) {
+    return target.metadata[key];
+  }
+  return undefined;
 };
 
 export const getAllMetadata = (target: any) => {
-  return target.metadata;
+  if (target.metadata) {
+    return target.metadata;
+  }
+  return undefined;
 };

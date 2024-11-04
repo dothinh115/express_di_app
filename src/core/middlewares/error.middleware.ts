@@ -15,6 +15,8 @@ export class ErrorHandlerMiddleware implements AppErrorMiddleware {
       statusCode = error.statusCode;
     }
 
+    console.log(error);
+
     res.status(statusCode).send({
       statusCode,
       message,
