@@ -1,6 +1,6 @@
 import { Response, NextFunction } from "express";
 import { AppMiddleware } from "../core/base/middleware.base";
-import { Request } from "../utils/types";
+import { Request } from "../core/utils/types";
 
 export class UserMiddleware implements AppMiddleware {
   use(req: Request, res: Response, next: NextFunction): void {

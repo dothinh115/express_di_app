@@ -1,7 +1,7 @@
 import { Response, NextFunction } from "express";
 import { AppMiddleware } from "../base/middleware.base";
-import { Request } from "../../utils/types";
-import { Injectable } from "../../decorators/injectable.decorator";
+import { Request } from "../utils/types";
+import { Injectable } from "../decorators/injectable.decorator";
 
 @Injectable()
 export class BaseResponseFormatter implements AppMiddleware {

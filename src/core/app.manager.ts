@@ -5,7 +5,7 @@ import { ErrorHandlerMiddleware } from "./middlewares/error.middleware";
 import { BaseResponseFormatter } from "./middlewares/response-formatter.middleware";
 import { NotFoundHandlerMiddleware } from "./middlewares/404-handler.middleware";
 import { routeRegister } from "./routes/register.route";
-import { combinePaths } from "../utils/common";
+import { combinePaths } from "./utils/common";
 
 type TMiddleware = (
   | Constructor<any>

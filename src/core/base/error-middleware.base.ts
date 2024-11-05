@@ -1,5 +1,5 @@
 import { NextFunction, Response } from "express";
-import { Request } from "../../utils/types";
+import { Request } from "../utils/types";
 
 export class AppErrorMiddleware {
   use(
