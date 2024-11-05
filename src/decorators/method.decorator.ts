@@ -1,4 +1,4 @@
-import { setMetadata } from "../metadata/metadata";
+import { setMetadata } from "../core/metadata/metadata";
 import { methodMetadataKey } from "../utils/constant";
 import { Method } from "../utils/types";
 

@@ -1,8 +1,8 @@
 import express, { Router } from "express";
 import { getMetadata } from "../metadata/metadata";
-import { combinePaths } from "../utils/common";
+import { combinePaths } from "../../utils/common";
 import { RouteRegisterMiddleware } from "../middlewares/route-register.middleware";
-import { methodMetadataKey } from "../utils/constant";
+import { methodMetadataKey } from "../../utils/constant";
 
 export const routeRegister = (instance: any): Router => {
   const router = express.Router();
