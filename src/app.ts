@@ -3,7 +3,6 @@ import { UserController } from "./controllers/user.controller";
 import { AppManager } from "./core/app.manager";
 import { connectDb } from "./db/connect.db";
 import { UserMiddleware } from "./middlewares/user.middleware";
-import { AuthGuard } from "./guards/auth.guard";
 
 const port = 3000;
 const appManager = new AppManager({
@@ -13,12 +12,6 @@ const appManager = new AppManager({
     {
       provide: "/user/get",
       useClass: UserMiddleware,
-    },
-  ],
-  guards: [
-    {
-      provide: "/user/get",
-      useClass: AuthGuard,
     },
   ],
 });

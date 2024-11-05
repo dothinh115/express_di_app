@@ -16,35 +16,26 @@ type TMiddleware = (
 type TAppManager = {
   controllers?: Constructor<any>[];
   middlewares?: TMiddleware;
-  interceptors?: TMiddleware;
+  interceptors?: any[];
   prefix?: string[];
-  guards?: TMiddleware;
 };
 
 export class AppManager {
   controllers: Constructor<any>[];
   app: Application;
   container: Container;
-  instances: any[];
-  middlewares: TMiddleware;
-  interceptors: TMiddleware;
+  instances: TMiddleware;
+  middlewares: any[];
+  interceptors: any[];
   prefix: string;
-  guards: TMiddleware;
 
-  constructor({
-    controllers,
-    middlewares,
-    interceptors,
-    prefix,
-    guards,
-  }: TAppManager) {
+  constructor({ controllers, middlewares, interceptors, prefix }: TAppManager) {
     this.controllers = controllers ?? [];
     this.app = express();
     this.container = new Container();
     this.middlewares = middlewares ?? [];
     this.interceptors = interceptors ?? [];
     this.prefix = combinePaths(...(prefix ?? []));
-    this.guards = guards ?? [];
   }
 
   init() {
@@ -55,7 +46,6 @@ export class AppManager {
     );
     this.applyMiddlewares(...this.middlewares);
     this.routeRegister();
-    this.applyMiddlewares(...this.guards);
     this.applyMiddlewares(ExecuteHandlerMiddleware);
     this.applyMiddlewares(...this.interceptors);
     this.applyMiddlewares(BaseResponseFormatter);
