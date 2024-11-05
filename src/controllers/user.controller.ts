@@ -17,11 +17,6 @@ export class UserController {
     return this.userService.find();
   }
 
-  @Get("get/:id")
-  find1() {
-    return this.userService.find();
-  }
-
   @Get(":id") // /user/:id
   findById() {}
 }
