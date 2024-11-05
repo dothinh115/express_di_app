@@ -14,12 +14,18 @@ export class ErrorHandlerMiddleware implements AppErrorMiddleware {
       message = error.message;
       statusCode = error.statusCode;
     }
+    if (res instanceof Response) {
+      console.log(error);
 
-    console.log(error);
+      res.status(statusCode).send({
+        statusCode,
+        message,
+      });
+    }
 
-    res.status(statusCode).send({
-      statusCode,
-      message,
+    (req as unknown as Response).status(404).send({
+      statusCode: 404,
+      message: "Not found",
     });
   }
 }
