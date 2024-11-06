@@ -1,7 +1,7 @@
 import { Response, NextFunction } from "express";
-import { Request } from "../../utils/types";
+import { Request } from "../utils/types";
 import { AppMiddleware } from "../base/middleware.base";
-import { Injectable } from "../../decorators/injectable.decorator";
+import { Injectable } from "../decorators/injectable.decorator";
 
 @Injectable()
 export class ExecuteHandlerMiddleware implements AppMiddleware {

@@ -1,2 +1,1 @@
-export const methodMetadataKey = "method-metadata-key";
-export const paramMetadataKey = "param-metadata-key";
+export const PROTECTED_METADATA_KEY = "protected-metadata-key";

@@ -5,11 +5,20 @@ import { ErrorHandlerMiddleware } from "./middlewares/error.middleware";
 import { BaseResponseFormatter } from "./middlewares/response-formatter.middleware";
 import { NotFoundHandlerMiddleware } from "./middlewares/404-handler.middleware";
 import { routeRegister } from "./routes/register.route";
+import { combinePaths } from "./utils/common";
+
+type TMiddleware = (
+  | Constructor<any>
+  | ((req: any, res: any, next: any) => void)
+  | { forRoute: string; useClass: Constructor<any> }
+)[];
 
 type TAppManager = {
   controllers?: Constructor<any>[];
-  middlewares?: any[];
-  interceptors?: any[];
+  middlewares?: TMiddleware;
+  interceptors?: TMiddleware;
+  prefix?: string[];
+  guards?: TMiddleware;
 };
 
 export class AppManager {
@@ -17,15 +26,25 @@ export class AppManager {
   app: Application;
   container: Container;
   instances: any[];
-  middlewares: any[];
-  interceptors: any[];
+  middlewares: TMiddleware;
+  interceptors: TMiddleware;
+  prefix: string;
+  guards: TMiddleware;
 
-  constructor({ controllers, middlewares, interceptors }: TAppManager) {
+  constructor({
+    controllers,
+    middlewares,
+    interceptors,
+    prefix,
+    guards,
+  }: TAppManager) {
     this.controllers = controllers ?? [];
     this.app = express();
     this.container = new Container();
     this.middlewares = middlewares ?? [];
     this.interceptors = interceptors ?? [];
+    this.prefix = combinePaths(...(prefix ?? []));
+    this.guards = guards ?? [];
   }
 
   init() {
@@ -36,6 +55,7 @@ export class AppManager {
     );
     this.applyMiddlewares(...this.middlewares);
     this.routeRegister();
+    this.applyMiddlewares(...this.guards);
     this.applyMiddlewares(ExecuteHandlerMiddleware);
     this.applyMiddlewares(...this.interceptors);
     this.applyMiddlewares(BaseResponseFormatter);
@@ -54,20 +74,32 @@ export class AppManager {
   routeRegister() {
     this.instances.forEach((instance) => {
       const router = routeRegister(instance);
-      this.app.use(router);
+      this.app.use(this.prefix, router);
     });
   }
 
-  applyMiddlewares(...middlewares: any[]) {
+  applyMiddlewares(...middlewares: TMiddleware) {
     if (middlewares && middlewares.length > 0) {
       middlewares.forEach((middleware) => {
-        try {
-          new middleware();
-          this.container.register(middleware);
-          const instance = this.container.get<any>(middleware);
-          this.app.use(instance.use.bind(instance));
-        } catch (error) {
-          this.app.use(middleware);
+        if (
+          typeof middleware === "object" &&
+          "forRoute" in middleware &&
+          "useClass" in middleware
+        ) {
+          this.container.register(middleware.useClass);
+          const instance = this.container.get<any>(middleware.useClass);
+          const path = combinePaths(this.prefix, middleware.forRoute);
+          this.app.use(path, instance.use.bind(instance));
+        } else {
+          try {
+            middleware = middleware as Constructor<any>;
+            new middleware();
+            this.container.register(middleware);
+            const instance = this.container.get<any>(middleware);
+            this.app.use(instance.use.bind(instance));
+          } catch (error) {
+            this.app.use(middleware as (req: any, res: any, next: any) => void);
+          }
         }
       });
     }

@@ -1,6 +1,7 @@
-import { Controller } from "../decorators/controller.decorator";
-import { Get, Post } from "../decorators/method.decorator";
-import { Body } from "../decorators/param.decorator";
+import { Controller } from "../core/decorators/controller.decorator";
+import { Get, Post } from "../core/decorators/method.decorator";
+import { Body } from "../core/decorators/param.decorator";
+import { Protected } from "../decorators/protected.decorator";
 import { UserService } from "../services/user.service";
 
 @Controller("user")
@@ -12,11 +13,13 @@ export class UserController {
     return this.userService.create(body);
   }
 
-  @Get()
+  @Get("get") // /user/get
   find() {
     return this.userService.find();
   }
 
   @Get(":id") // /user/:id
-  findById() {}
+  findById() {
+    return "id";
+  }
 }

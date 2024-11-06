@@ -1,7 +1,7 @@
 import { Response } from "express";
-import { setMetadata } from "../core/metadata/metadata";
 import { paramMetadataKey } from "../utils/constant";
 import { Request } from "../utils/types";
+import { setMetadata } from "../metadata/metadata";
 
 export const Body = (): ParameterDecorator =>
   setMetadata(paramMetadataKey, (req: Request) => req.body);

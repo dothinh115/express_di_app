@@ -1,4 +1,4 @@
-import { paramMetadataKey } from "../../utils/constant";
+import { paramMetadataKey } from "../utils/constant";
 import { getMetadata } from "../metadata/metadata";
 
 export type Constructor<T> = new (...args: any) => T;
