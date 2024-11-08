@@ -9,15 +9,10 @@ export class ErrorHandlerMiddleware implements AppErrorMiddleware {
   use(error: any, req: Request, res: Response, next: NextFunction): void {
     if (next === undefined) return (res as unknown as NextFunction)();
 
-    let message = "Internal Error";
-    let statusCode = 500;
+    let message = error.message ?? "Internal Error";
+    let statusCode = error.statusCode ?? 500;
 
-    if (error instanceof BadRequestException) {
-      message = error.message;
-      statusCode = error.statusCode;
-    }
-
-    // console.log(error);
+    console.log(error);
 
     res.status(statusCode).send({
       statusCode,

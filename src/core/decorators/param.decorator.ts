@@ -14,3 +14,9 @@ export const Res = (): ParameterDecorator =>
 
 export const Inject = (value: any): ParameterDecorator =>
   setMetadata(paramMetadataKey, value);
+
+export const Param = (field: string): ParameterDecorator =>
+  setMetadata(
+    paramMetadataKey,
+    (req: Request) => req.params[field] ?? undefined
+  );

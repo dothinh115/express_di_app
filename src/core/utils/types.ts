@@ -11,5 +11,6 @@ export type Request = ERequest & {
   context: {
     instance: any;
     handlerName: string;
+    params: any;
   };
 };

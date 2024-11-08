@@ -1,4 +1,4 @@
-import express, { Application } from "express";
+import express, { Application, NextFunction, Response } from "express";
 import { Constructor, Container } from "./di/container.di";
 import { ExecuteHandlerMiddleware } from "./middlewares/execute-handler.middleware";
 import { ErrorHandlerMiddleware } from "./middlewares/error.middleware";
@@ -6,11 +6,14 @@ import { BaseResponseFormatter } from "./middlewares/response-formatter.middlewa
 import { NotFoundHandlerMiddleware } from "./middlewares/404-handler.middleware";
 import { routeRegister } from "./routes/register.route";
 import { combinePaths } from "./utils/common";
+import { AppService } from "./app/app.service";
+import { Request } from "./utils/types";
 
 type TMiddleware = (
   | Constructor<any>
   | ((req: any, res: any, next: any) => void)
-  | { forRoute: string; useClass: Constructor<any> }
+  | ((error: any, req: any, res: any, next: any) => void)
+  | { forRoutes: string[]; useClass: Constructor<any> }
 )[];
 
 type TAppManager = {
@@ -39,8 +42,9 @@ export class AppManager {
     guards,
   }: TAppManager) {
     this.controllers = controllers ?? [];
-    this.app = express();
     this.container = new Container();
+    this.container.register(AppService);
+    this.app = this.container.get<AppService>(AppService).getInstance();
     this.middlewares = middlewares ?? [];
     this.interceptors = interceptors ?? [];
     this.prefix = combinePaths(...(prefix ?? []));
@@ -53,14 +57,15 @@ export class AppManager {
       express.json(),
       express.urlencoded({ extended: true })
     );
-    this.applyMiddlewares(...this.middlewares);
     this.routeRegister();
+    this.applyMiddlewares(NotFoundHandlerMiddleware);
+    this.applyMiddlewares(...this.middlewares);
     this.applyMiddlewares(...this.guards);
     this.applyMiddlewares(ExecuteHandlerMiddleware);
     this.applyMiddlewares(...this.interceptors);
     this.applyMiddlewares(BaseResponseFormatter);
-    this.applyMiddlewares(ErrorHandlerMiddleware);
-    this.applyMiddlewares(NotFoundHandlerMiddleware);
+    this.applyErrorMiddlewares(ErrorHandlerMiddleware);
+
     return this.app;
   }
 
@@ -73,9 +78,35 @@ export class AppManager {
 
   routeRegister() {
     this.instances.forEach((instance) => {
-      const router = routeRegister(instance);
-      this.app.use(this.prefix, router);
+      const routers = routeRegister(instance);
+      routers.forEach((router) => {
+        const path = combinePaths(this.prefix, router.path);
+        this.app[router.method.toLowerCase() as keyof Application](
+          path,
+          router.middleware
+        );
+        console.log(`Đăng ký thành công route [${router.method}] ${path} `);
+      });
     });
+  }
+
+  applyErrorMiddlewares(...middlewares: TMiddleware) {
+    if (middlewares && middlewares.length > 0) {
+      middlewares.forEach((middleware) => {
+        middleware = middleware as Constructor<any>;
+        new middleware();
+        this.container.register(middleware);
+        const instance = this.container.get<any>(middleware);
+        this.app.use(((
+          error: any,
+          req: Request,
+          res: Response,
+          next: NextFunction
+        ) => {
+          instance.use(error, req, res, next);
+        }) as any);
+      });
+    }
   }
 
   applyMiddlewares(...middlewares: TMiddleware) {
@@ -83,13 +114,15 @@ export class AppManager {
       middlewares.forEach((middleware) => {
         if (
           typeof middleware === "object" &&
-          "forRoute" in middleware &&
+          "forRoutes" in middleware &&
           "useClass" in middleware
         ) {
           this.container.register(middleware.useClass);
           const instance = this.container.get<any>(middleware.useClass);
-          const path = combinePaths(this.prefix, middleware.forRoute);
-          this.app.use(path, instance.use.bind(instance));
+          middleware.forRoutes.forEach((route) => {
+            const path = combinePaths(this.prefix, route);
+            this.app.use(path, instance.use.bind(instance));
+          });
         } else {
           try {
             middleware = middleware as Constructor<any>;

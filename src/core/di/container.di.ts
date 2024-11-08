@@ -8,7 +8,9 @@ export class Container {
   registered = new Map<string, any>();
 
   register(constructor: Constructor<any>) {
-    this.services.set(constructor.name, constructor);
+    if (!this.services.has(constructor.name)) {
+      this.services.set(constructor.name, constructor);
+    }
   }
 
   get<T>(constructor: Constructor<T>): T {

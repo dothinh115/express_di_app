@@ -17,6 +17,10 @@ const userSchema = new mongoose.Schema(
       type: Number,
       min: 0, // Đảm bảo tuổi là số dương
     },
+    password: {
+      type: String,
+      required: true,
+    },
   },
   {
     timestamps: true, // Tự động thêm createdAt và updatedAt
