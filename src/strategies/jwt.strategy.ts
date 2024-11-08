@@ -7,7 +7,7 @@ import { Request } from "../core/utils/types";
 
 @Injectable()
 export class JwtStrategy extends Strategy {
-  constructor(@Inject(PassportService) passportService: PassportService) {
+  constructor(passportService: PassportService) {
     super(
       {
         jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),

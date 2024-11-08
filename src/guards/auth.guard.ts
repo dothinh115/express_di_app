@@ -3,7 +3,6 @@ import { AppGuard } from "../core/base/guard.base";
 import { AppContext } from "../core/base/context.base";
 import { UnAuthorizedException } from "../core/base/error.base";
 import { JwtStrategy } from "../strategies/jwt.strategy";
-import { Inject } from "../core/decorators/param.decorator";
 import { PassportService } from "../services/passport.service";
 import { getMetadata } from "../core/metadata/metadata";
 import { PROTECTED_METADATA_KEY } from "../utils/constant";
@@ -13,7 +12,7 @@ import { JwtPayload } from "jsonwebtoken";
 export class AuthGuard extends AppGuard {
   constructor(
     jwtStrategy: JwtStrategy,
-    @Inject(PassportService) private passportService: PassportService
+    private passportService: PassportService
   ) {
     super();
   }

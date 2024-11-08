@@ -18,7 +18,6 @@ export class UserController {
   @Get()
   @Protected()
   find(@Req() req: Request) {
-    console.log(req.user);
     return this.userService.find();
   }
 
