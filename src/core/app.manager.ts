@@ -3,7 +3,7 @@ import { Constructor, Container } from "./di/container.di";
 import { ExecuteHandlerMiddleware } from "./middlewares/execute-handler.middleware";
 import { ErrorHandlerMiddleware } from "./middlewares/error.middleware";
 import { BaseResponseFormatter } from "./middlewares/response-formatter.middleware";
-import { NotFoundHandlerMiddleware } from "./middlewares/404-handler.middleware";
+import { NotFoundHandlerMiddleware } from "./middlewares/not-found-handler.middleware";
 import { routeRegister } from "./routes/register.route";
 import { combinePaths } from "./utils/common";
 import { AppService } from "./app/app.service";
