@@ -7,3 +7,18 @@ export const combinePaths = (...paths: string[]) => {
       .join("/")
   );
 };
+
+export const defaultMethods = [
+  "constructor",
+  "toString",
+  "valueOf",
+  "hasOwnProperty",
+  "isPrototypeOf",
+  "propertyIsEnumerable",
+  "__proto__",
+  "__defineGetter__",
+  "__defineSetter__",
+  "__lookupGetter__",
+  "__lookupSetter__",
+  "onInit",
+];

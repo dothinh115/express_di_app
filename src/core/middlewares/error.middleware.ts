@@ -1,7 +1,6 @@
 import { Response, NextFunction } from "express";
 import { Request } from "../utils/types";
 import { AppErrorMiddleware } from "../base/error-middleware.base";
-import { BadRequestException } from "../base/error.base";
 import { Injectable } from "../decorators/injectable.decorator";
 
 @Injectable()

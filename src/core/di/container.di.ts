@@ -1,5 +1,6 @@
 import { paramMetadataKey } from "../utils/constant";
 import { getMetadata } from "../metadata/metadata";
+import { defaultMethods } from "../utils/common";
 
 export type Constructor<T> = new (...args: any) => T;
 
@@ -47,7 +48,7 @@ export class Container {
 
     // Replace method param bằng decorator
     const methods = Object.getOwnPropertyNames(service.prototype).filter(
-      (method) => method !== "constructor"
+      (method) => !defaultMethods.includes(method)
     );
     methods.forEach((method) => {
       if (typeof service.prototype[method] === "function") {
@@ -92,6 +93,10 @@ export class Container {
     });
 
     const instance = new service(...dependencies);
+
+    if (typeof instance.onInit === "function") {
+      instance.onInit();
+    }
     this.registered.set(service.name, instance);
     return instance;
   }

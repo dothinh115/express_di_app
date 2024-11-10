@@ -1,6 +1,6 @@
 import express from "express";
 import { getMetadata } from "../metadata/metadata";
-import { combinePaths } from "../utils/common";
+import { combinePaths, defaultMethods } from "../utils/common";
 import { RouteRegisterMiddleware } from "../middlewares/route-register.middleware";
 import { methodMetadataKey } from "../utils/constant";
 
@@ -8,7 +8,7 @@ export const routeRegister = (instance: any) => {
   const controllerPath = getMetadata(methodMetadataKey, instance.constructor);
   const methods = Object.getOwnPropertyNames(
     Object.getPrototypeOf(instance)
-  ).filter((method) => method !== "constructor");
+  ).filter((method) => !defaultMethods.includes(method));
   return methods
     .sort((a, b) => {
       const pathA = getMetadata(methodMetadataKey, instance[a]).path;

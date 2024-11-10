@@ -6,7 +6,6 @@ import { BaseResponseFormatter } from "./middlewares/response-formatter.middlewa
 import { NotFoundHandlerMiddleware } from "./middlewares/404-handler.middleware";
 import { routeRegister } from "./routes/register.route";
 import { combinePaths } from "./utils/common";
-import { AppService } from "./app/app.service";
 import { Request } from "./utils/types";
 
 type TMiddleware = (
@@ -43,8 +42,7 @@ export class AppManager {
   }: TAppManager) {
     this.controllers = controllers ?? [];
     this.container = new Container();
-    this.container.register(AppService);
-    this.app = this.container.get<AppService>(AppService).getInstance();
+    this.app = express();
     this.middlewares = middlewares ?? [];
     this.interceptors = interceptors ?? [];
     this.prefix = combinePaths(...(prefix ?? []));
@@ -59,13 +57,6 @@ export class AppManager {
     );
     this.routeRegister();
     this.applyMiddlewares(NotFoundHandlerMiddleware);
-    this.applyMiddlewares(...this.middlewares);
-    this.applyMiddlewares(...this.guards);
-    this.applyMiddlewares(ExecuteHandlerMiddleware);
-    this.applyMiddlewares(...this.interceptors);
-    this.applyMiddlewares(BaseResponseFormatter);
-    this.applyErrorMiddlewares(ErrorHandlerMiddleware);
-
     return this.app;
   }
 
@@ -83,30 +74,21 @@ export class AppManager {
         const path = combinePaths(this.prefix, router.path);
         this.app[router.method.toLowerCase() as keyof Application](
           path,
-          router.middleware
+          router.middleware,
+          this.getMiddlewares(...this.middlewares),
+          this.getMiddlewares(...this.guards),
+          this.getMiddlewares(ExecuteHandlerMiddleware),
+          this.getMiddlewares(...this.interceptors),
+          this.getMiddlewares(BaseResponseFormatter),
+          (error: any, req: Request, res: Response, next: NextFunction) => {
+            this.container.register(ErrorHandlerMiddleware);
+            const instance = this.container.get(ErrorHandlerMiddleware);
+            instance.use(error, req, res, next);
+          }
         );
         console.log(`Đăng ký thành công route [${router.method}] ${path} `);
       });
     });
-  }
-
-  applyErrorMiddlewares(...middlewares: TMiddleware) {
-    if (middlewares && middlewares.length > 0) {
-      middlewares.forEach((middleware) => {
-        middleware = middleware as Constructor<any>;
-        new middleware();
-        this.container.register(middleware);
-        const instance = this.container.get<any>(middleware);
-        this.app.use(((
-          error: any,
-          req: Request,
-          res: Response,
-          next: NextFunction
-        ) => {
-          instance.use(error, req, res, next);
-        }) as any);
-      });
-    }
   }
 
   applyMiddlewares(...middlewares: TMiddleware) {
@@ -136,5 +118,41 @@ export class AppManager {
         }
       });
     }
+  }
+
+  getMiddlewares(...middlewares: TMiddleware) {
+    if (middlewares && middlewares.length > 0) {
+      return middlewares.map((middleware) => {
+        if (
+          typeof middleware === "object" &&
+          "forRoutes" in middleware &&
+          "useClass" in middleware
+        ) {
+          this.container.register(middleware.useClass);
+          const instance = this.container.get<any>(middleware.useClass);
+          return (req: Request, res: Response, next: NextFunction) => {
+            middleware.forRoutes.forEach((route) => {
+              const path = combinePaths(this.prefix, route);
+              console.log(instance.constructor.name, req.route.path, path);
+              if (req.route.path.startsWith(path)) {
+                instance.use(req, res, next);
+              } else next();
+            });
+          };
+        } else {
+          try {
+            new (middleware as Constructor<any>)();
+            this.container.register(middleware as Constructor<any>);
+            const instance = this.container.get<any>(
+              middleware as Constructor<any>
+            );
+            return instance.use.bind(instance);
+          } catch (error) {
+            return middleware;
+          }
+        }
+      });
+    }
+    return [];
   }
 }
