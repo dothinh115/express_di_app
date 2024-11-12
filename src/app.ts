@@ -5,20 +5,21 @@ import { connectDb } from "./db/connect.db";
 import { AuthGuard } from "./guards/auth.guard";
 import { PostController } from "./controllers/post.controller";
 import { AuthController } from "./controllers/auth.controller";
-import dotenv from "dotenv";
+import { ChatController } from "./controllers/chat.controller";
 import { UploadController } from "./controllers/upload.controller";
 import { SingleFileUploadMiddleware } from "./middlewares/single-file-upload.middleware";
 import express from "express";
 import path from "path";
+import dotenv from "dotenv";
 dotenv.config();
 
-const port = 3000;
 const appManager = new AppManager({
   controllers: [
     UserController,
     PostController,
     AuthController,
     UploadController,
+    ChatController,
   ],
   prefix: ["api"],
   guards: [AuthGuard],
@@ -36,7 +37,7 @@ const appManager = new AppManager({
 
   app.use("/static", express.static(path.resolve("./uploads")));
 
-  app.listen(port, () => {
-    console.log("App is running at http://localhost:" + port);
+  app.listen(3000, () => {
+    console.log("App is running at http://localhost:" + 3000);
   });
 })();

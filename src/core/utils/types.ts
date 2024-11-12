@@ -14,3 +14,12 @@ export type Request = ERequest & {
     params: any;
   };
 };
+
+export type TGateway = {
+  namespace?: string;
+  port?: number;
+  cors?: {
+    origin?: string;
+    method?: Method;
+  };
+};

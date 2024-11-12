@@ -1,15 +1,21 @@
 import { setMetadata } from "../metadata/metadata";
-import { methodMetadataKey } from "../utils/constant";
+import {
+  METHOD_METADATA_KEY,
+  SUBSCRIBE_MESSAGE_METADATA_KEY,
+} from "../utils/constant";
 import { Method } from "../utils/types";
 
 export const Get = (path = ""): MethodDecorator =>
-  setMetadata(methodMetadataKey, { path, method: Method.GET });
+  setMetadata(METHOD_METADATA_KEY, { path, method: Method.GET });
 
 export const Post = (path = ""): MethodDecorator =>
-  setMetadata(methodMetadataKey, { path, method: Method.POST });
+  setMetadata(METHOD_METADATA_KEY, { path, method: Method.POST });
 
 export const Patch = (path = ""): MethodDecorator =>
-  setMetadata(methodMetadataKey, { path, method: Method.PATCH });
+  setMetadata(METHOD_METADATA_KEY, { path, method: Method.PATCH });
 
 export const Delete = (path = ""): MethodDecorator =>
-  setMetadata(methodMetadataKey, { path, method: Method.DELETE });
+  setMetadata(METHOD_METADATA_KEY, { path, method: Method.DELETE });
+
+export const SubscribeMessage = (message: string): MethodDecorator =>
+  setMetadata(SUBSCRIBE_MESSAGE_METADATA_KEY, message);

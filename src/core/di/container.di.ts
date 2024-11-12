@@ -1,4 +1,4 @@
-import { paramMetadataKey } from "../utils/constant";
+import { PARAM_METADATA_KEY } from "../utils/constant";
 import { getMetadata } from "../metadata/metadata";
 import { defaultMethods } from "../utils/common";
 
@@ -33,7 +33,7 @@ export class Container {
 
     // Replace constructor param bằng decorator
     dependencies = dependencies.map((dependency: any, index: number) => {
-      const shouldReplaced = getMetadata(paramMetadataKey, service, index);
+      const shouldReplaced = getMetadata(PARAM_METADATA_KEY, service, index);
       if (shouldReplaced) {
         try {
           new shouldReplaced.value();
@@ -63,7 +63,7 @@ export class Container {
           const paramMetadatas = paramTypes
             .map((paramType: any, index: number) => {
               const paramMetadata = getMetadata(
-                paramMetadataKey,
+                PARAM_METADATA_KEY,
                 service.prototype[method],
                 index
               );

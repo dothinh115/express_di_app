@@ -5,8 +5,17 @@ import { ErrorHandlerMiddleware } from "./middlewares/error.middleware";
 import { BaseResponseFormatter } from "./middlewares/response-formatter.middleware";
 import { NotFoundHandlerMiddleware } from "./middlewares/404-handler.middleware";
 import { routeRegister } from "./routes/register.route";
-import { combinePaths } from "./utils/common";
-import { Request } from "./utils/types";
+import { combinePaths, defaultMethods } from "./utils/common";
+import { Request, TGateway } from "./utils/types";
+import { getMetadata } from "./metadata/metadata";
+import {
+  METHOD_METADATA_KEY,
+  SOCKET_GATEWAY_METADATA_KEY,
+  SUBSCRIBE_MESSAGE_METADATA_KEY,
+} from "./utils/constant";
+import http from "http";
+import { Server, Socket } from "socket.io";
+import { UnAuthorizedException } from "./base/error.base";
 
 type TMiddleware = (
   | Constructor<any>
@@ -24,14 +33,16 @@ type TAppManager = {
 };
 
 export class AppManager {
-  controllers: Constructor<any>[];
-  app: Application;
-  container: Container;
-  instances: any[];
-  middlewares: TMiddleware;
-  interceptors: TMiddleware;
-  prefix: string;
-  guards: TMiddleware;
+  private controllers: Constructor<any>[];
+  private app: Application;
+  private container: Container;
+  private restfulInstances: any[] = [];
+  private gatewayInstances: any[] = [];
+  private middlewares: TMiddleware;
+  private interceptors: TMiddleware;
+  private prefix: string;
+  private guards: TMiddleware;
+  private servers = new Map<number, http.Server>();
 
   constructor({
     controllers,
@@ -50,25 +61,35 @@ export class AppManager {
   }
 
   init() {
-    this.diRegister();
     this.applyMiddlewares(
       express.json(),
       express.urlencoded({ extended: true })
     );
+    this.instanceRegister();
     this.routeRegister();
     this.applyMiddlewares(NotFoundHandlerMiddleware);
-    return this.app;
+    return this;
   }
 
-  diRegister() {
-    this.instances = this.controllers.map((controller) => {
-      this.container.register(controller);
-      return this.container.get(controller);
+  private diRegister(constructor: Constructor<any>) {
+    this.container.register(constructor);
+    return this.container.get(constructor);
+  }
+
+  instanceRegister() {
+    this.controllers.forEach((controller) => {
+      const controllerPath = getMetadata(METHOD_METADATA_KEY, controller);
+      const instance = this.diRegister(controller);
+      if (controllerPath !== undefined) {
+        this.restfulInstances.push(instance);
+      } else {
+        this.gatewayInstances.push(instance);
+      }
     });
   }
 
-  routeRegister() {
-    this.instances.forEach((instance) => {
+  private routeRegister() {
+    this.restfulInstances.forEach((instance) => {
       const routers = routeRegister(instance);
       routers.forEach((router) => {
         const path = combinePaths(this.prefix, router.path);
@@ -81,8 +102,7 @@ export class AppManager {
           this.getMiddlewares(...this.interceptors),
           this.getMiddlewares(BaseResponseFormatter),
           (error: any, req: Request, res: Response, next: NextFunction) => {
-            this.container.register(ErrorHandlerMiddleware);
-            const instance = this.container.get(ErrorHandlerMiddleware);
+            const instance = this.diRegister(ErrorHandlerMiddleware);
             instance.use(error, req, res, next);
           }
         );
@@ -91,7 +111,7 @@ export class AppManager {
     });
   }
 
-  applyMiddlewares(...middlewares: TMiddleware) {
+  private applyMiddlewares(...middlewares: TMiddleware) {
     if (middlewares && middlewares.length > 0) {
       middlewares.forEach((middleware) => {
         if (
@@ -99,8 +119,7 @@ export class AppManager {
           "forRoutes" in middleware &&
           "useClass" in middleware
         ) {
-          this.container.register(middleware.useClass);
-          const instance = this.container.get<any>(middleware.useClass);
+          const instance = this.diRegister(middleware.useClass);
           middleware.forRoutes.forEach((route) => {
             const path = combinePaths(this.prefix, route);
             this.app.use(path, instance.use.bind(instance));
@@ -109,8 +128,7 @@ export class AppManager {
           try {
             middleware = middleware as Constructor<any>;
             new middleware();
-            this.container.register(middleware);
-            const instance = this.container.get<any>(middleware);
+            const instance = this.diRegister(middleware);
             this.app.use(instance.use.bind(instance));
           } catch (error) {
             this.app.use(middleware as (req: any, res: any, next: any) => void);
@@ -120,7 +138,7 @@ export class AppManager {
     }
   }
 
-  getMiddlewares(...middlewares: TMiddleware) {
+  private getMiddlewares(...middlewares: TMiddleware) {
     if (middlewares && middlewares.length > 0) {
       return middlewares.map((middleware) => {
         if (
@@ -128,12 +146,10 @@ export class AppManager {
           "forRoutes" in middleware &&
           "useClass" in middleware
         ) {
-          this.container.register(middleware.useClass);
-          const instance = this.container.get<any>(middleware.useClass);
+          const instance = this.diRegister(middleware.useClass);
           return (req: Request, res: Response, next: NextFunction) => {
             middleware.forRoutes.forEach((route) => {
               const path = combinePaths(this.prefix, route);
-              console.log(instance.constructor.name, req.route.path, path);
               if (req.route.path.startsWith(path)) {
                 instance.use(req, res, next);
               } else next();
@@ -142,10 +158,7 @@ export class AppManager {
         } else {
           try {
             new (middleware as Constructor<any>)();
-            this.container.register(middleware as Constructor<any>);
-            const instance = this.container.get<any>(
-              middleware as Constructor<any>
-            );
+            const instance = this.diRegister(middleware as Constructor<any>);
             return instance.use.bind(instance);
           } catch (error) {
             return middleware;
@@ -154,5 +167,75 @@ export class AppManager {
       });
     }
     return [];
+  }
+
+  gatewayRegister(port: number) {
+    this.gatewayInstances.forEach((instance) => {
+      const gatewayOptions: TGateway = getMetadata(
+        SOCKET_GATEWAY_METADATA_KEY,
+        instance.constructor
+      );
+      if (!gatewayOptions) {
+        return;
+      }
+      let socketServer: http.Server;
+      const targetPort = gatewayOptions.port ?? port;
+      if (this.servers.has(targetPort)) {
+        socketServer = this.servers.get(targetPort)!;
+      } else {
+        socketServer = http.createServer();
+        this.servers.set(targetPort, socketServer);
+        socketServer.listen(targetPort);
+      }
+      const io = new Server(socketServer, {
+        cors: gatewayOptions.cors ?? {
+          origin: "*",
+        },
+      });
+      const namespace = io.of(gatewayOptions.namespace ?? "/");
+      namespace.use((socket: Socket, next: any) => {
+        if (typeof instance.handleHandshake === "function") {
+          const isAuthenticated = instance.handleHandshake(socket);
+          if (!isAuthenticated) {
+            return next(new UnAuthorizedException());
+          }
+          return next();
+        } else return next();
+      });
+
+      const methods = Object.getOwnPropertyNames(
+        Object.getPrototypeOf(instance)
+      ).filter((method) => !defaultMethods.includes(method));
+
+      namespace.on("connection", (socket) => {
+        methods.forEach((method) => {
+          const message = getMetadata(
+            SUBSCRIBE_MESSAGE_METADATA_KEY,
+            instance[method]
+          );
+          if (!message) {
+            return;
+          }
+          socket.on(message, (data: any) => {
+            instance[method](socket, data);
+          });
+        });
+      });
+    });
+  }
+
+  use(
+    path: string = "/",
+    middleware: (req: any, res: Response, next: NextFunction) => void
+  ) {
+    this.app.use(path, middleware);
+  }
+
+  listen(port: number, callback: () => void) {
+    const server = http.createServer(this.app);
+    this.servers.set(port, server);
+    server.listen(port, callback);
+
+    this.gatewayRegister(port);
   }
 }

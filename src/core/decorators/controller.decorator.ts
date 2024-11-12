@@ -1,5 +1,5 @@
 import { setMetadata } from "../metadata/metadata";
-import { methodMetadataKey } from "../utils/constant";
+import { METHOD_METADATA_KEY } from "../utils/constant";
 
 export const Controller = (path = ""): ClassDecorator =>
-  setMetadata(methodMetadataKey, path);
+  setMetadata(METHOD_METADATA_KEY, path);
