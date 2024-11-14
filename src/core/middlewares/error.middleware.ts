@@ -11,7 +11,7 @@ export class ErrorHandlerMiddleware implements AppErrorMiddleware {
     let message = error.message ?? "Internal Error";
     let statusCode = error.statusCode ?? 500;
 
-    console.log(error);
+    // console.log(error);
 
     res.status(statusCode).send({
       statusCode,

@@ -10,7 +10,6 @@ export class AppContext {
   private request: Request;
   private response: Response;
   private next: NextFunction;
-  private params: any;
 
   constructor(req: Request, res: Response, next: NextFunction) {
     this.controllerClass = req.context.instance.constructor ?? undefined;
@@ -18,7 +17,6 @@ export class AppContext {
     this.request = req;
     this.response = res;
     this.next = next;
-    this.params = req.context.params ?? undefined;
   }
 
   switchToHttpRequest() {
@@ -39,9 +37,5 @@ export class AppContext {
 
   getNextFunction() {
     return this.next;
-  }
-
-  getParams() {
-    return this.params;
   }
 }

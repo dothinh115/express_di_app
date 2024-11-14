@@ -11,9 +11,12 @@ import { SingleFileUploadMiddleware } from "./middlewares/single-file-upload.mid
 import express from "express";
 import path from "path";
 import dotenv from "dotenv";
+import { BaseResponseFormatter } from "./interceptors/response-formatter.interceptor";
+import { BodyValidateInterceptor } from "./interceptors/body-validate.interceptor";
+import { ValidationPipe } from "./pipes/validation.pipe";
 dotenv.config();
 
-const appManager = new AppManager({
+const app = new AppManager({
   controllers: [
     UserController,
     PostController,
@@ -29,13 +32,22 @@ const appManager = new AppManager({
       useClass: SingleFileUploadMiddleware,
     },
   ],
+  interceptors: [
+    {
+      forRoutes: ["/user", "/post"],
+      useClass: BaseResponseFormatter,
+    },
+    BodyValidateInterceptor,
+  ],
+  pipes: [ValidationPipe],
 });
 
 (async () => {
   await connectDb();
-  const app = appManager.init();
 
   app.use("/static", express.static(path.resolve("./uploads")));
+
+  app.init();
 
   app.listen(3000, () => {
     console.log("App is running at http://localhost:" + 3000);

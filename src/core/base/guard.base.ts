@@ -7,7 +7,7 @@ import { ForbiddenException } from "./error.base";
 
 @Injectable()
 export class AppGuard implements AppMiddleware {
-  use(req: Request, res: Response, next: NextFunction): void {
+  use(req: Request, res: Response, next: NextFunction): void | Promise<void> {
     const context = new AppContext(req, res, next);
     try {
       const shouldPass = this.canActive(context);

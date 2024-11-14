@@ -1,6 +1,8 @@
-import { PARAM_METADATA_KEY } from "../utils/constant";
+import { PARAM_METADATA_KEY, USE_PIPES_METADATA_KEY } from "../utils/constant";
 import { getMetadata } from "../metadata/metadata";
 import { defaultMethods } from "../utils/common";
+import { Request } from "../utils/types";
+import { NextFunction } from "express";
 
 export type Constructor<T> = new (...args: any) => T;
 
@@ -56,9 +58,17 @@ export class Container {
           Reflect.getMetadata("design:paramtypes", service.prototype, method) ??
           [];
 
+        if (paramTypes.length === 0) return;
+
         const originalMethod = service.prototype[method];
 
-        service.prototype[method] = function (...args: any[]) {
+        const pipe =
+          getMetadata(USE_PIPES_METADATA_KEY, service.prototype[method]) ??
+          getMetadata(USE_PIPES_METADATA_KEY, service);
+
+        const self = this;
+
+        service.prototype[method] = async function (...args: any[]) {
           const [req, res, next] = args;
           const paramMetadatas = paramTypes
             .map((paramType: any, index: number) => {
@@ -73,10 +83,25 @@ export class Container {
               return undefined;
             })
             .filter((paramType: any) => paramType !== undefined);
-          paramMetadatas.forEach((paramMetadata: any) => {
-            args[paramMetadata.index] = paramMetadata.value(req, res, next);
-          });
-          return originalMethod.apply(this, args);
+
+          for (const paramMetadata of paramMetadatas) {
+            let result = paramMetadata.value(req, res, next);
+            const index = paramMetadata.index;
+            const paramType = paramTypes[index];
+            if (pipe) {
+              self.register(pipe);
+              const pipeInstance = self.get<any>(pipe);
+              if (typeof pipeInstance.transform === "function") {
+                try {
+                  result = await pipeInstance.transform(result, paramType);
+                } catch (error) {
+                  throw error;
+                }
+              }
+            }
+            args[paramMetadata.index] = result;
+          }
+          return await originalMethod.apply(this, args);
         };
         Object.defineProperty(service.prototype[method], "name", {
           value: originalMethod.name,

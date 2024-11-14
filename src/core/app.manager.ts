@@ -2,7 +2,6 @@ import express, { Application, NextFunction, Response } from "express";
 import { Constructor, Container } from "./di/container.di";
 import { ExecuteHandlerMiddleware } from "./middlewares/execute-handler.middleware";
 import { ErrorHandlerMiddleware } from "./middlewares/error.middleware";
-import { BaseResponseFormatter } from "./middlewares/response-formatter.middleware";
 import { NotFoundHandlerMiddleware } from "./middlewares/404-handler.middleware";
 import { routeRegister } from "./routes/register.route";
 import { combinePaths, defaultMethods } from "./utils/common";
@@ -12,10 +11,13 @@ import {
   METHOD_METADATA_KEY,
   SOCKET_GATEWAY_METADATA_KEY,
   SUBSCRIBE_MESSAGE_METADATA_KEY,
+  USE_PIPES_METADATA_KEY,
 } from "./utils/constant";
 import http from "http";
 import { Server, Socket } from "socket.io";
 import { UnAuthorizedException } from "./base/error.base";
+import { NextCallFunction } from "./base/next-call-function.base";
+import { AppContext } from "./base/context.base";
 
 type TMiddleware = (
   | Constructor<any>
@@ -24,12 +26,18 @@ type TMiddleware = (
   | { forRoutes: string[]; useClass: Constructor<any> }
 )[];
 
+type TInterceptor = (
+  | Constructor<any>
+  | { forRoutes: string[]; useClass: Constructor<any> }
+)[];
+
 type TAppManager = {
   controllers?: Constructor<any>[];
   middlewares?: TMiddleware;
-  interceptors?: TMiddleware;
+  interceptors?: TInterceptor;
   prefix?: string[];
   guards?: TMiddleware;
+  pipes?: Constructor<any>[];
 };
 
 export class AppManager {
@@ -39,10 +47,11 @@ export class AppManager {
   private restfulInstances: any[] = [];
   private gatewayInstances: any[] = [];
   private middlewares: TMiddleware;
-  private interceptors: TMiddleware;
+  private interceptors: TInterceptor;
   private prefix: string;
   private guards: TMiddleware;
   private servers = new Map<number, http.Server>();
+  private pipes: Constructor<any>[];
 
   constructor({
     controllers,
@@ -50,6 +59,7 @@ export class AppManager {
     interceptors,
     prefix,
     guards,
+    pipes,
   }: TAppManager) {
     this.controllers = controllers ?? [];
     this.container = new Container();
@@ -58,6 +68,7 @@ export class AppManager {
     this.interceptors = interceptors ?? [];
     this.prefix = combinePaths(...(prefix ?? []));
     this.guards = guards ?? [];
+    this.pipes = pipes ?? [];
   }
 
   init() {
@@ -65,10 +76,10 @@ export class AppManager {
       express.json(),
       express.urlencoded({ extended: true })
     );
+    this.useGlobalPipes();
     this.instanceRegister();
     this.routeRegister();
     this.applyMiddlewares(NotFoundHandlerMiddleware);
-    return this;
   }
 
   private diRegister(constructor: Constructor<any>) {
@@ -76,7 +87,7 @@ export class AppManager {
     return this.container.get(constructor);
   }
 
-  instanceRegister() {
+  private instanceRegister() {
     this.controllers.forEach((controller) => {
       const controllerPath = getMetadata(METHOD_METADATA_KEY, controller);
       const instance = this.diRegister(controller);
@@ -89,6 +100,7 @@ export class AppManager {
   }
 
   private routeRegister() {
+    console.log(this.controllers);
     this.restfulInstances.forEach((instance) => {
       const routers = routeRegister(instance);
       routers.forEach((router) => {
@@ -98,9 +110,32 @@ export class AppManager {
           router.middleware,
           this.getMiddlewares(...this.middlewares),
           this.getMiddlewares(...this.guards),
-          this.getMiddlewares(ExecuteHandlerMiddleware),
-          this.getMiddlewares(...this.interceptors),
-          this.getMiddlewares(BaseResponseFormatter),
+          async (req: Request, res: Response, next: NextFunction) => {
+            const executeHandlerInstance = this.getMiddlewares(
+              ExecuteHandlerMiddleware
+            );
+            const nextCallFunctionInstance = new NextCallFunction(
+              req,
+              res,
+              next,
+              ...executeHandlerInstance
+            );
+
+            const interceptFunctions = this.getInterceptors(req);
+            const context = new AppContext(req, res, next);
+
+            for (const interceptFunction of interceptFunctions) {
+              if (!interceptFunction) continue;
+              nextCallFunctionInstance.observable = await Promise.resolve(
+                interceptFunction(context, nextCallFunctionInstance)
+              );
+            }
+
+            nextCallFunctionInstance.handle().subscribe({
+              next: (data) => res.send(data),
+              error: (error) => next(error),
+            });
+          },
           (error: any, req: Request, res: Response, next: NextFunction) => {
             const instance = this.diRegister(ErrorHandlerMiddleware);
             instance.use(error, req, res, next);
@@ -110,6 +145,8 @@ export class AppManager {
       });
     });
   }
+
+  // routes register -> middlewares -> guards -> interceptors -> handler -> interceptors
 
   private applyMiddlewares(...middlewares: TMiddleware) {
     if (middlewares && middlewares.length > 0) {
@@ -136,6 +173,28 @@ export class AppManager {
         }
       });
     }
+  }
+
+  private getInterceptors(req: Request) {
+    return this.interceptors.flatMap((interceptor) => {
+      if (
+        typeof interceptor === "object" &&
+        "forRoutes" in interceptor &&
+        "useClass" in interceptor
+      ) {
+        const instance = this.diRegister(interceptor.useClass);
+        return interceptor.forRoutes.map((route) => {
+          const path = combinePaths(this.prefix, route);
+          if (req.route.path.startsWith(path)) {
+            return instance.intercept.bind(instance);
+          }
+          return undefined;
+        });
+      } else {
+        const instance = this.diRegister(interceptor);
+        return instance.intercept.bind(instance);
+      }
+    });
   }
 
   private getMiddlewares(...middlewares: TMiddleware) {
@@ -237,5 +296,18 @@ export class AppManager {
     server.listen(port, callback);
 
     this.gatewayRegister(port);
+  }
+
+  useGlobalPipes() {
+    if (this.pipes && this.pipes.length > 0) {
+      this.controllers.forEach((controller) => {
+        this.pipes.forEach((pipe) => {
+          (controller as any).metadata = {
+            ...(controller as any).metadata,
+            [USE_PIPES_METADATA_KEY]: pipe,
+          };
+        });
+      });
+    }
   }
 }
