@@ -1,8 +1,6 @@
 import { PARAM_METADATA_KEY, USE_PIPES_METADATA_KEY } from "../utils/constant";
 import { getMetadata } from "../metadata/metadata";
 import { defaultMethods } from "../utils/common";
-import { Request } from "../utils/types";
-import { NextFunction } from "express";
 
 export type Constructor<T> = new (...args: any) => T;
 

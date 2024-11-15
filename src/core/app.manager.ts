@@ -100,7 +100,6 @@ export class AppManager {
   }
 
   private routeRegister() {
-    console.log(this.controllers);
     this.restfulInstances.forEach((instance) => {
       const routers = routeRegister(instance);
       routers.forEach((router) => {
