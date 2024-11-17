@@ -6,7 +6,7 @@ import { NotFoundHandlerMiddleware } from "./middlewares/404-handler.middleware"
 import { routeRegister } from "./routes/register.route";
 import { combinePaths, defaultMethods } from "./utils/common";
 import { Request, TGateway } from "./utils/types";
-import { getMetadata } from "./metadata/metadata";
+import { getMetadata, setMetadata } from "./metadata/metadata";
 import {
   METHOD_METADATA_KEY,
   SOCKET_GATEWAY_METADATA_KEY,
@@ -31,13 +31,18 @@ type TInterceptor = (
   | { forRoutes: string[]; useClass: Constructor<any> }
 )[];
 
+type TPipe = (
+  | Constructor<any>
+  | { forRoutes: string[]; useClass: Constructor<any> }
+)[];
+
 type TAppManager = {
   controllers?: Constructor<any>[];
   middlewares?: TMiddleware;
   interceptors?: TInterceptor;
   prefix?: string[];
   guards?: TMiddleware;
-  pipes?: Constructor<any>[];
+  pipes?: TPipe;
 };
 
 export class AppManager {
@@ -51,7 +56,7 @@ export class AppManager {
   private prefix: string;
   private guards: TMiddleware;
   private servers = new Map<number, http.Server>();
-  private pipes: Constructor<any>[];
+  private pipes: TPipe;
 
   constructor({
     controllers,
@@ -299,14 +304,43 @@ export class AppManager {
 
   useGlobalPipes() {
     if (this.pipes && this.pipes.length > 0) {
-      this.controllers.forEach((controller) => {
-        this.pipes.forEach((pipe) => {
-          (controller as any).metadata = {
-            ...(controller as any).metadata,
-            [USE_PIPES_METADATA_KEY]: pipe,
-          };
+      for (const controller of this.controllers) {
+        const controllerPath = getMetadata(METHOD_METADATA_KEY, controller);
+        if (controllerPath === undefined) {
+          continue;
+        }
+        const methods = Object.getOwnPropertyNames(controller.prototype).filter(
+          (method) => !defaultMethods.includes(method)
+        );
+        methods.forEach((method) => {
+          this.pipes.forEach((pipe) => {
+            if (
+              typeof pipe === "object" &&
+              "forRoutes" in pipe &&
+              "useClass" in pipe
+            ) {
+              const methodMetadata = getMetadata(
+                METHOD_METADATA_KEY,
+                controller.prototype[method]
+              );
+              const path = combinePaths(controllerPath, methodMetadata.path);
+              pipe.forRoutes.forEach((route) => {
+                if (path.startsWith(route)) {
+                  controller.prototype[method].metadata = {
+                    ...controller.prototype[method].metadata,
+                    [USE_PIPES_METADATA_KEY]: pipe.useClass,
+                  };
+                }
+              });
+            } else {
+              controller.prototype[method].metadata = {
+                ...controller.prototype[method].metadata,
+                [USE_PIPES_METADATA_KEY]: pipe,
+              };
+            }
+          });
         });
-      });
+      }
     }
   }
 }

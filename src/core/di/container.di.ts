@@ -90,11 +90,7 @@ export class Container {
               self.register(pipe);
               const pipeInstance = self.get<any>(pipe);
               if (typeof pipeInstance.transform === "function") {
-                try {
-                  result = await pipeInstance.transform(result, paramType);
-                } catch (error) {
-                  throw error;
-                }
+                result = await pipeInstance.transform(result, paramType);
               }
             }
             args[paramMetadata.index] = result;

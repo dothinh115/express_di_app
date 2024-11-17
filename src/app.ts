@@ -39,7 +39,12 @@ const app = new AppManager({
     },
     BodyValidateInterceptor,
   ],
-  pipes: [ValidationPipe],
+  pipes: [
+    {
+      forRoutes: ["/user"],
+      useClass: ValidationPipe,
+    },
+  ],
 });
 
 (async () => {
