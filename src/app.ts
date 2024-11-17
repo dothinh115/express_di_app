@@ -12,7 +12,6 @@ import express from "express";
 import path from "path";
 import dotenv from "dotenv";
 import { BaseResponseFormatter } from "./interceptors/response-formatter.interceptor";
-import { BodyValidateInterceptor } from "./interceptors/body-validate.interceptor";
 import { ValidationPipe } from "./pipes/validation.pipe";
 dotenv.config();
 
@@ -37,7 +36,6 @@ const app = new AppManager({
       forRoutes: ["/user", "/post"],
       useClass: BaseResponseFormatter,
     },
-    BodyValidateInterceptor,
   ],
   pipes: [
     {
