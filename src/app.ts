@@ -13,6 +13,11 @@ import path from "path";
 import dotenv from "dotenv";
 import { BaseResponseFormatter } from "./interceptors/response-formatter.interceptor";
 import { ValidationPipe } from "./pipes/validation.pipe";
+import { buildSchema } from "type-graphql";
+import { UserResolver } from "./graph/resolvers/user.resolver";
+import { ApolloServer } from "@apollo/server";
+import { expressMiddleware } from "@apollo/server/express4";
+import { PostResolver } from "./graph/resolvers/post.resolver";
 dotenv.config();
 
 const app = new AppManager({
@@ -45,14 +50,36 @@ const app = new AppManager({
   ],
 });
 
-(async () => {
+async function bootstrap() {
   await connectDb();
 
   app.use("/static", express.static(path.resolve("./uploads")));
+
+  const container = app.getContainer();
+  const resolvers = [UserResolver, PostResolver];
+  for (const resolver of resolvers) {
+    app.diRegister(resolver);
+  }
+
+  const schema = await buildSchema({
+    resolvers: resolvers as any,
+    container,
+  });
+
+  const server = new ApolloServer({
+    schema,
+    introspection: true,
+  });
+
+  await server.start();
+  app.use("/", express.json());
+  app.use("/graphql", expressMiddleware(server));
 
   app.init();
 
   app.listen(3000, () => {
     console.log("App is running at http://localhost:" + 3000);
   });
-})();
+}
+
+bootstrap();

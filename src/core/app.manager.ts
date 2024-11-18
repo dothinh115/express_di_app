@@ -6,7 +6,7 @@ import { NotFoundHandlerMiddleware } from "./middlewares/404-handler.middleware"
 import { routeRegister } from "./routes/register.route";
 import { combinePaths, defaultMethods } from "./utils/common";
 import { Request, TGateway } from "./utils/types";
-import { getMetadata, setMetadata } from "./metadata/metadata";
+import { getMetadata } from "./metadata/metadata";
 import {
   METHOD_METADATA_KEY,
   SOCKET_GATEWAY_METADATA_KEY,
@@ -76,18 +76,16 @@ export class AppManager {
     this.pipes = pipes ?? [];
   }
 
-  init() {
-    this.applyMiddlewares(
-      express.json(),
-      express.urlencoded({ extended: true })
-    );
+  async init() {
+    this.applyMiddlewares(express.urlencoded({ extended: true }));
+
     this.useGlobalPipes();
     this.instanceRegister();
     this.routeRegister();
     this.applyMiddlewares(NotFoundHandlerMiddleware);
   }
 
-  private diRegister(constructor: Constructor<any>) {
+  diRegister(constructor: Constructor<any>) {
     this.container.register(constructor);
     return this.container.get(constructor);
   }
@@ -300,6 +298,10 @@ export class AppManager {
     server.listen(port, callback);
 
     this.gatewayRegister(port);
+  }
+
+  getContainer() {
+    return this.container;
   }
 
   useGlobalPipes() {
