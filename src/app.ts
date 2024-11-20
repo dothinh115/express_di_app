@@ -18,6 +18,7 @@ import { UserResolver } from "./graph/resolvers/user.resolver";
 import { ApolloServer } from "@apollo/server";
 import { expressMiddleware } from "@apollo/server/express4";
 import { PostResolver } from "./graph/resolvers/post.resolver";
+import { AuthGraphMiddleware } from "./graph/middlewares/auth.middleware";
 dotenv.config();
 
 const app = new AppManager({
@@ -57,12 +58,19 @@ async function bootstrap() {
 
   const container = app.getContainer();
   const resolvers = [UserResolver, PostResolver];
+  const middlewares = [AuthGraphMiddleware];
+
   for (const resolver of resolvers) {
     app.diRegister(resolver);
   }
 
+  for (const middleware of middlewares) {
+    app.diRegister(middleware);
+  }
+
   const schema = await buildSchema({
     resolvers: resolvers as any,
+    globalMiddlewares: middlewares,
     container,
   });
 
@@ -73,7 +81,12 @@ async function bootstrap() {
 
   await server.start();
   app.use("/", express.json());
-  app.use("/graphql", expressMiddleware(server));
+  app.use(
+    "/graphql",
+    expressMiddleware(server, {
+      context: async ({ req }) => ({ req }),
+    })
+  );
 
   app.init();
 

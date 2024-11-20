@@ -10,12 +10,14 @@ import { Post } from "../types/post";
 import { PostGService } from "../services/post.service";
 import { CreatePostInputType } from "../input-types/create-post";
 import { User } from "../types/user";
+import { Protected } from "../../decorators/protected.decorator";
 
 @Resolver(() => Post)
 export class PostResolver {
   constructor(private postService: PostGService) {}
 
   @Query(() => [Post])
+  @Protected()
   post() {
     return this.postService.find();
   }
